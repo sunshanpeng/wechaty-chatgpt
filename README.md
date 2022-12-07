@@ -24,3 +24,14 @@ npm i
 // run
 npm run chatgpt
 ```
+
+## 使用机器人
+- 扫码登录
+![image.png](./media/screenshot-20221207-130656.png)
+- 测试ding-dong
+- /c 使用chatgpt
+![image.png](./media/screenshot-20221207-131138.png)
+
+# 感谢
+- https://github.com/wechaty/wechaty/
+- https://github.com/transitive-bullshit/chatgpt-api
