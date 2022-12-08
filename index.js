@@ -1,9 +1,11 @@
 import { WechatyBuilder } from 'wechaty';
 import qrcodeTerminal from 'qrcode-terminal';
 import { ChatGPTAPI } from 'chatgpt';
+
 let sessionToken = '';
 const api = new ChatGPTAPI({ sessionToken: sessionToken || process.env.SESSION_TOKEN });
 await api.ensureAuth();
+
 const wechaty = WechatyBuilder.build({
   name: 'wechaty-chatgpt',
   puppet: 'wechaty-puppet-wechat',
@@ -22,27 +24,44 @@ wechaty
   .on('message', async message => {
     const contact = message.talker();
     const content = message.text();
+    const room = message.room();
     const isText = message.type() === wechaty.Message.Type.Text;
-    if (message.self() || !isText) {
+    if (!isText) {
       return;
     }
-    console.log(`contact: ${contact} content: ${content}`);
-    if (content === 'ding') {
-      await contact.say('dong');
-    }
-    if (content.startsWith('/c ')) {
-      const request = content.replace('/c ', '');
-      console.log(`contact: ${contact} request: ${request}`);
-      const response = await api.sendMessage(request);
-      console.log(`contact: ${contact} response: ${response}`);
-      try {
-        await contact.say(response);
-      } catch (e) {
-        console.error(e);
-      }
+    if (room) {
+      const topic = await room.topic();
+      console.log(`room name: ${topic} contact: ${contact} content: ${content}`);
+      reply(room, content);
+    } else {
+      console.log(`contact: ${contact} content: ${content}`);
+      reply(contact, content);
     }
   });
 wechaty
   .start()
   .then(() => console.log('Start to log in wechat...'))
   .catch(e => console.error(e));
+
+async function reply(contact, content) {
+  if (content === 'ding') {
+    await contact.say('dong');
+  }
+  if (content.startsWith('/c ')) {
+    const request = content.replace('/c ', '');
+    console.log(`contact: ${contact} request: ${request}`);
+    let response = '出了一点小问题，请稍后重试下...';
+    try {
+      response = await api.sendMessage(request);
+      console.log(`contact: ${contact} response: ${response}`);
+    } catch (e) {
+      console.error(e);
+    }
+    try {
+      response = `${request} \n --------------------------- \n` + response;
+      await contact.say(response);
+    } catch (e) {
+      console.error(e);
+    }
+  }
+}

@@ -21,7 +21,7 @@
 ```bash
 export SESSION_TOKEN=上一步中拷贝的`__Secure-next-auth.session-token`的值 
 
-docker run -e SESSION_TOKEN="$(echo $SESSION_TOKEN)" --rm -it registry.cn-hangzhou.aliyuncs.com/sunshanpeng/wechaty-chatgpt:0.0.1
+docker run -e SESSION_TOKEN="$(echo $SESSION_TOKEN)" --rm -it registry.cn-hangzhou.aliyuncs.com/sunshanpeng/wechaty-chatgpt:0.0.4
 ```
 
 #### 源码安装
