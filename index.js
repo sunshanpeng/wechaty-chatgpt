@@ -21,6 +21,16 @@ wechaty
   })
   .on('login', user => console.log(`User ${user} logged in`))
   .on('logout', user => console.log(`User ${user} has logged out`))
+  .on('friendship', async friendship => {
+    try {
+      console.log(`received friend event from ${friendship.contact().name()}, messageType: ${friendship.type()}`);
+      if (friendship.type() === wechaty.Friendship.Type.Receive) {
+        await friendship.accept();
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  })
   .on('message', async message => {
     const contact = message.talker();
     const receiver = message.listener();
