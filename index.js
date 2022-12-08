@@ -23,13 +23,19 @@ wechaty
   .on('logout', user => console.log(`User ${user} has logged out`))
   .on('message', async message => {
     const contact = message.talker();
-    const content = message.text();
+    const receiver = message.listener();
+    let content = message.text();
     const room = message.room();
     const isText = message.type() === wechaty.Message.Type.Text;
     if (!isText) {
       return;
     }
     if (room) {
+      if (await message.mentionSelf()) {
+        const [groupContent] = content.split(`@${receiver?.name()}`).filter(item => item.trim());
+        console.log(`groupContent:${groupContent}`);
+        content = groupContent;
+      }
       const topic = await room.topic();
       console.log(`room name: ${topic} contact: ${contact} content: ${content}`);
       reply(room, content);
@@ -44,24 +50,33 @@ wechaty
   .catch(e => console.error(e));
 
 async function reply(contact, content) {
+  content = content.trim();
   if (content === 'ding') {
     await contact.say('dong');
   }
   if (content.startsWith('/c ')) {
     const request = content.replace('/c ', '');
-    console.log(`contact: ${contact} request: ${request}`);
-    let response = '出了一点小问题，请稍后重试下...';
-    try {
-      response = await api.sendMessage(request);
-      console.log(`contact: ${contact} response: ${response}`);
-    } catch (e) {
-      console.error(e);
-    }
-    try {
-      response = `${request} \n --------------------------- \n` + response;
-      await contact.say(response);
-    } catch (e) {
-      console.error(e);
-    }
+    await chatgptReply(contact, request);
+  }
+  if (content.startsWith('/chatgpt ')) {
+    const request = content.replace('/chatgpt ', '');
+    await chatgptReply(contact, request);
+  }
+}
+
+async function chatgptReply(contact, request) {
+  console.log(`contact: ${contact} request: ${request}`);
+  let response = '出了一点小问题，请稍后重试下...';
+  try {
+    response = await api.sendMessage(request);
+    console.log(`contact: ${contact} response: ${response}`);
+  } catch (e) {
+    console.error(e);
+  }
+  try {
+    response = `${request} \n --------------------------- \n` + response;
+    await contact.say(response);
+  } catch (e) {
+    console.error(e);
   }
 }
