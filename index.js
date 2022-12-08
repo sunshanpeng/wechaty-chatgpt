@@ -32,9 +32,11 @@ wechaty
     }
     if (room) {
       if (await message.mentionSelf()) {
-        const [groupContent] = content.split(`@${receiver?.name()}`).filter(item => item.trim());
+        const groupContent = content.replace(`@${receiver?.name()}`, '');
         console.log(`groupContent:${groupContent}`);
-        content = groupContent;
+        if (groupContent) {
+          content = groupContent;
+        }
       }
       const topic = await room.topic();
       console.log(`room name: ${topic} contact: ${contact} content: ${content}`);

@@ -1,0 +1,9 @@
+
+version: "3"
+services:
+  bot:
+    image: registry.cn-hangzhou.aliyuncs.com/sunshanpeng/wechaty-chatgpt:0.0.5
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
