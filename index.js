@@ -31,7 +31,10 @@ wechaty
       await contact.say('dong');
     }
     if (content.startsWith('/c ')) {
-      const response = await api.sendMessage(content.replace('/c ', ''));
+      const request = content.replace('/c ', '');
+      console.log(`contact: ${contact} request: ${request}`);
+      const response = await api.sendMessage(request);
+      console.log(`contact: ${contact} response: ${response}`);
       try {
         await contact.say(response);
       } catch (e) {
