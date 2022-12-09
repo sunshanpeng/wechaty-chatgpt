@@ -58,14 +58,21 @@ wechaty
       return;
     }
     if (room) {
+      const topic = await room.topic();
       if (await message.mentionSelf()) {
         const groupContent = content.replace(`@${receiver?.name()}`, '');
         console.log(`groupContent:${groupContent}`);
         if (groupContent) {
-          content = groupContent;
+          content = groupContent.trim();
+          if (!content.startsWith('/c')) {
+            // 支持在群里@直接调用
+            await chatgptReply(room, content);
+          }
+        } else {
+          //todo 光@，没内容
+          console.log(`@ event emit. room name: ${topic} contact: ${contact} content: ${content}`);
         }
       }
-      const topic = await room.topic();
       console.log(`room name: ${topic} contact: ${contact} content: ${content}`);
       reply(room, content);
     } else {
@@ -81,7 +88,7 @@ wechaty
 async function reply(contact, content) {
   content = content.trim();
   if (content === 'ding') {
-    await contact.say('dong');
+    await send(contact, 'dong');
   }
   if (content.startsWith('/c ')) {
     const request = content.replace('/c ', '');
@@ -102,9 +109,13 @@ async function chatgptReply(contact, request) {
   } catch (e) {
     console.error(e);
   }
+  response = `${request} \n ------------------------ \n` + response;
+  await send(contact, response);
+}
+
+async function send(contact, message) {
   try {
-    response = `${request} \n ------------------------ \n` + response;
-    await contact.say(response);
+    await contact.say(message);
   } catch (e) {
     console.error(e);
   }
