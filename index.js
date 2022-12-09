@@ -60,7 +60,13 @@ wechaty
     if (room) {
       const topic = await room.topic();
       if (await message.mentionSelf()) {
-        const groupContent = content.replace(`@${receiver?.name()}`, '');
+        let receiverName = '';
+        if (receiver) {
+          // hotfix: https://github.com/sunshanpeng/wechaty-chatgpt/issues/3
+          const alias = await room.alias(receiver);
+          receiverName = alias || receiver.name();
+        }
+        const groupContent = content.replace(`@${receiverName}`, '');
         console.log(`groupContent:${groupContent}`);
         if (groupContent) {
           content = groupContent.trim();
