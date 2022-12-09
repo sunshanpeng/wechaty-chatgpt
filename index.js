@@ -21,6 +21,18 @@ wechaty
   })
   .on('login', user => console.log(`User ${user} logged in`))
   .on('logout', user => console.log(`User ${user} has logged out`))
+  .on('room-invite', async roomInvitation => {
+    try {
+      // 自动通过群聊邀请
+      console.log(`received room-invite event.`);
+      await roomInvitation.accept();
+    } catch (e) {
+      console.error(e);
+    }
+  })
+  .on('room-join', async (room, inviteeList, inviter) => {
+    console.log('received room-join event ');
+  })
   .on('friendship', async friendship => {
     try {
       console.log(`received friend event from ${friendship.contact().name()}, messageType: ${friendship.type()}`);
