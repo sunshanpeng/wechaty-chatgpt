@@ -5,6 +5,7 @@ import { ChatGPTAPI } from 'chatgpt';
 let sessionToken = '';
 const api = new ChatGPTAPI({ sessionToken: sessionToken || process.env.SESSION_TOKEN });
 await api.ensureAuth();
+const conversationPool = new Map();
 
 const wechaty = WechatyBuilder.build({
   name: 'wechaty-chatgpt',
@@ -62,7 +63,7 @@ wechaty
       if (await message.mentionSelf()) {
         let receiverName = '';
         if (receiver) {
-          // hotfix: https://github.com/sunshanpeng/wechaty-chatgpt/issues/3
+          // 支持修改机器人群聊昵称  https://github.com/sunshanpeng/wechaty-chatgpt/issues/3
           const alias = await room.alias(receiver);
           receiverName = alias || receiver.name();
         }
@@ -110,13 +111,30 @@ async function chatgptReply(contact, request) {
   console.log(`contact: ${contact} request: ${request}`);
   let response = '出了一点小问题，请稍后重试下...';
   try {
-    response = await api.sendMessage(request);
+    const conversation = await getConversion(contact);
+    response = await conversation.sendMessage(request);
     console.log(`contact: ${contact} response: ${response}`);
   } catch (e) {
     console.error(e);
+    // 尝试刷新token
+    if (await !api.getIsAuthenticated()) {
+      // 刷新失败，需要重新登录
+      console.error('Unauthenticated');
+      response = 'ChatGPT账号权限过期，需要管理员重新登录后才能继续使用';
+    }
   }
   response = `${request} \n ------------------------ \n` + response;
   await send(contact, response);
+}
+
+async function getConversion(contact) {
+  // 支持会话上下文 https://github.com/sunshanpeng/wechaty-chatgpt/issues/1
+  let conversation = conversationPool.get(contact.id);
+  if (!conversation) {
+    conversation = api.getConversation();
+    conversationPool.set(contact.id, conversation);
+  }
+  return conversation;
 }
 
 async function send(contact, message) {

@@ -42,10 +42,13 @@ npm run chatgpt
 ### 使用机器人
 
 - 扫码登录
-![image.png](./media/screenshot-20221207-130656.png)
+
+<img src="./media/screenshot-20221207-130656.png" width="600"/>
+
 - 测试ding-dong
 - /c 使用chatgpt
-![image.png](./media/screenshot-20221207-131138.png)
+
+<img src="./media/screenshot-20221207-131138.png" width="400"/>
 
 ## 感谢
 
