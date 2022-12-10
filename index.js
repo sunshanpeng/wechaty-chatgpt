@@ -55,7 +55,7 @@ wechaty
     let content = message.text();
     const room = message.room();
     const isText = message.type() === wechaty.Message.Type.Text;
-    if (!isText) {
+    if (!isText || message.self()) {
       return;
     }
     if (room) {
@@ -97,14 +97,21 @@ async function reply(room, contact, content) {
   if (content === 'ding') {
     const target = room || contact;
     await send(target, 'dong');
+    return;
   }
   if (content.startsWith('/c ')) {
     const request = content.replace('/c ', '');
     await chatgptReply(room, contact, request);
+    return;
   }
   if (content.startsWith('/chatgpt ')) {
     const request = content.replace('/chatgpt ', '');
     await chatgptReply(room, contact, request);
+    return;
+  }
+  if (!room && content) {
+    await chatgptReply(room, contact, content);
+    return;
   }
 }
 
