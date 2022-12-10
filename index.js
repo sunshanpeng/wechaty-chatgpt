@@ -37,14 +37,6 @@ wechaty
   .on('friendship', async friendship => {
     try {
       console.log(`received friend event from ${friendship.contact().name()}, messageType: ${friendship.type()}`);
-      if (friendship.type() === wechaty.Friendship.Type.Receive) {
-        await friendship.accept();
-      }
-      if (friendship.type() === wechaty.Friendship.Type.Confirm) {
-        const contact = friendship.contact();
-        await contact.say('你好呀，我是chatgpt小助手，可以把我拉到群里和大家一起玩，也可以单独发/chatgpt 指令来召唤我哦');
-        await contact.say('/chatgpt 讲个笑话');
-      }
     } catch (e) {
       console.error(e);
     }
