@@ -73,7 +73,7 @@ wechaty
           content = groupContent.trim();
           if (!content.startsWith('/c')) {
             // 支持在群里@直接调用
-            await chatgptReply(room, content);
+            await chatgptReply(room, contact, content);
           }
         } else {
           //todo 光@，没内容
@@ -81,10 +81,10 @@ wechaty
         }
       }
       console.log(`room name: ${topic} contact: ${contact} content: ${content}`);
-      reply(room, content);
+      reply(room, contact, content);
     } else {
       console.log(`contact: ${contact} content: ${content}`);
-      reply(contact, content);
+      reply(null, contact, content);
     }
   });
 wechaty
@@ -92,39 +92,46 @@ wechaty
   .then(() => console.log('Start to log in wechat...'))
   .catch(e => console.error(e));
 
-async function reply(contact, content) {
+async function reply(room, contact, content) {
   content = content.trim();
   if (content === 'ding') {
-    await send(contact, 'dong');
+    const target = room || contact;
+    await send(target, 'dong');
   }
   if (content.startsWith('/c ')) {
     const request = content.replace('/c ', '');
-    await chatgptReply(contact, request);
+    await chatgptReply(room, contact, request);
   }
   if (content.startsWith('/chatgpt ')) {
     const request = content.replace('/chatgpt ', '');
-    await chatgptReply(contact, request);
+    await chatgptReply(room, contact, request);
   }
 }
 
-async function chatgptReply(contact, request) {
+async function chatgptReply(room, contact, request) {
   console.log(`contact: ${contact} request: ${request}`);
-  let response = '出了一点小问题，请稍后重试下...';
+  let response = '🤒🤒🤒出了一点小问题，请稍后重试下...';
   try {
     const conversation = await getConversion(contact);
-    response = await conversation.sendMessage(request);
+    response = await conversation.sendMessage(request, {
+      timeoutMs: 2 * 60 * 1000,
+    });
     console.log(`contact: ${contact} response: ${response}`);
   } catch (e) {
+    if (e.message === 'ChatGPTAPI error 429') {
+      response = '🤯🤯🤯请稍等一下哦，我还在思考你的上一个问题';
+    }
     console.error(e);
     // 尝试刷新token
     if (await !api.getIsAuthenticated()) {
       // 刷新失败，需要重新登录
       console.error('Unauthenticated');
-      response = 'ChatGPT账号权限过期，需要管理员重新登录后才能继续使用';
+      response = '🤖🤖🤖ChatGPT账号权限过期，需要管理员重新登录后才能继续使用';
     }
   }
   response = `${request} \n ------------------------ \n` + response;
-  await send(contact, response);
+  const target = room || contact;
+  await send(target, response);
 }
 
 async function getConversion(contact) {
