@@ -34,7 +34,7 @@
 ```bash
 export OPENAI_API_KEY=上一步中创建的密钥 
 
-docker run -e OPENAI_API_KEY="$(echo $OPENAI_API_KEY)" --rm -it registry.cn-hangzhou.aliyuncs.com/sunshanpeng/wechaty-chatgpt:0.0.8
+docker run -e OPENAI_API_KEY="$(echo $OPENAI_API_KEY)" --rm -it registry.cn-hangzhou.aliyuncs.com/sunshanpeng/wechaty-chatgpt:0.1.0
 ```
 
 #### 源码安装
