@@ -2,9 +2,8 @@ import { WechatyBuilder } from 'wechaty';
 import qrcodeTerminal from 'qrcode-terminal';
 import { ChatGPTAPI } from 'chatgpt';
 
-let sessionToken = '';
-const api = new ChatGPTAPI({ sessionToken: sessionToken || process.env.SESSION_TOKEN });
-await api.ensureAuth();
+let apiKey = '';
+const api = new ChatGPTAPI({ apiKey: apiKey || process.env.OPENAI_API_KEY });
 const conversationPool = new Map();
 
 const wechaty = WechatyBuilder.build({
@@ -104,36 +103,30 @@ async function chatgptReply(room, contact, request) {
   console.log(`contact: ${contact} request: ${request}`);
   let response = '🤒🤒🤒出了一点小问题，请稍后重试下...';
   try {
-    const conversation = await getConversion(contact);
-    response = await conversation.sendMessage(request, {
-      timeoutMs: 2 * 60 * 1000,
-    });
+    let opts = {};
+    // conversation
+    let conversation = conversationPool.get(contact.id);
+    if (conversation) {
+      opts = conversation;
+    }
+    opts.timeoutMs = 2 * 60 * 1000;
+    let res = await api.sendMessage(request, opts);
+    response = res.text;
     console.log(`contact: ${contact} response: ${response}`);
+    conversation = {
+      conversationId: res.conversationId,
+      parentMessageId: res.id,
+    };
+    conversationPool.set(contact.id, conversation);
   } catch (e) {
     if (e.message === 'ChatGPTAPI error 429') {
       response = '🤯🤯🤯请稍等一下哦，我还在思考你的上一个问题';
     }
     console.error(e);
-    // 尝试刷新token
-    if (await !api.getIsAuthenticated()) {
-      // 刷新失败，需要重新登录
-      console.error('Unauthenticated');
-      response = '🤖🤖🤖ChatGPT账号权限过期，需要管理员重新登录后才能继续使用';
-    }
   }
   response = `${request} \n ------------------------ \n` + response;
   const target = room || contact;
   await send(target, response);
-}
-
-async function getConversion(contact) {
-  // 支持会话上下文 https://github.com/sunshanpeng/wechaty-chatgpt/issues/1
-  let conversation = conversationPool.get(contact.id);
-  if (!conversation) {
-    conversation = api.getConversation();
-    conversationPool.set(contact.id, conversation);
-  }
-  return conversation;
 }
 
 async function send(contact, message) {
