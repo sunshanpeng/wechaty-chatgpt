@@ -85,10 +85,13 @@ wechaty
 
 async function reply(room, contact, content) {
   content = content.trim();
-  const my_self = process.env.BIG_WECHATY_ID
+  // const my_self = '@7d1b55de3f6dfb7909261ffe219363f8'
+
   const target = room || contact;
-  console.log(`target.id:${target.id}`)
-  if (content === 'ding') {
+  const admin = process.env.ADMIN
+  const is_admin = target.payload.alias === admin
+
+  if (is_admin && content === 'ding') {
     await send(target, 'dong');
   }
 
@@ -98,7 +101,7 @@ async function reply(room, contact, content) {
 
   const hit_prefix = keywords.includes(prefix)
 
-  if (hit_prefix || my_self === target.id) {
+  if (hit_prefix || is_admin) {
     const request = hit_prefix ? content.replace(prefix, '') : content;
     await chatgptReply(target, contact, request);
   }
