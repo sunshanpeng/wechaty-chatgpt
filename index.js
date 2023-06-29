@@ -1,6 +1,6 @@
-import { WechatyBuilder } from 'wechaty';
-import qrcodeTerminal from 'qrcode-terminal';
 import { ChatGPTAPI } from 'chatgpt';
+import qrcodeTerminal from 'qrcode-terminal';
+import { WechatyBuilder } from 'wechaty';
 
 let apiKey = '';
 const api = new ChatGPTAPI({ apiKey: apiKey || process.env.OPENAI_API_KEY });
@@ -15,7 +15,7 @@ const wechaty = WechatyBuilder.build({
 });
 wechaty
   .on('scan', async (qrcode, status) => {
-    qrcodeTerminal.generate(qrcode); // 在console端显示二维码
+    qrcodeTerminal.generate(qrcode, { small: true }); // 在console端显示二维码
     const qrcodeImageUrl = ['https://api.qrserver.com/v1/create-qr-code/?data=', encodeURIComponent(qrcode)].join('');
     console.log(qrcodeImageUrl);
   })
@@ -85,18 +85,23 @@ wechaty
 
 async function reply(room, contact, content) {
   content = content.trim();
+  const my_self = process.env.my_self
+  const target = room || contact;
   if (content === 'ding') {
-    const target = room || contact;
     await send(target, 'dong');
   }
-  if (content.startsWith('/c ')) {
-    const request = content.replace('/c ', '');
-    await chatgptReply(room, contact, request);
+
+  const prefix = content.split(' ')[0]
+
+  const keywords = ['/c', '/chatgpt']
+
+  const hit_prefix = keywords.includes(prefix)
+
+  if (hit_prefix || my_self === target.id) {
+    const request = hit_prefix ? content.replace(prefix, '') : content;
+    await chatgptReply(target, contact, request);
   }
-  if (content.startsWith('/chatgpt ')) {
-    const request = content.replace('/chatgpt ', '');
-    await chatgptReply(room, contact, request);
-  }
+
 }
 
 async function chatgptReply(room, contact, request) {
@@ -124,7 +129,7 @@ async function chatgptReply(room, contact, request) {
     }
     console.error(e);
   }
-  response = `${request} \n ------------------------ \n` + response;
+  // response = `${request} \n ------------------------ \n` + response;
   const target = room || contact;
   await send(target, response);
 }
