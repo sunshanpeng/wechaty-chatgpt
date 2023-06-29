@@ -87,6 +87,7 @@ async function reply(room, contact, content) {
   content = content.trim();
   const my_self = process.env.BIG_WECHATY_ID
   const target = room || contact;
+  console.log(`target.id:${target.id}`)
   if (content === 'ding') {
     await send(target, 'dong');
   }
