@@ -3,7 +3,7 @@ import qrcodeTerminal from 'qrcode-terminal';
 import { WechatyBuilder } from 'wechaty';
 
 const api = new ChatGPTAPI({
-  apiKey: apiKey || process.env.OPENAI_API_KEY,
+  apiKey: process.env.OPENAI_API_KEY,
   apiBaseUrl: process.env.apiBaseUrl,
 });
 
