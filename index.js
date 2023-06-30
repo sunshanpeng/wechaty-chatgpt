@@ -1,4 +1,5 @@
 import { ChatGPTAPI } from 'chatgpt';
+import { FileBox } from 'file-box';
 import qrcodeTerminal from 'qrcode-terminal';
 import { WechatyBuilder } from 'wechaty';
 
@@ -12,7 +13,7 @@ const conversationPool = new Map();
 
 const wechaty = WechatyBuilder.build({
   name: 'wechaty-chatgpt',
-  puppet: 'wechaty-puppet-wechat',
+  puppet: 'wechaty-puppet-wechat4u',
   puppetOptions: {
     uos: true,
   },
@@ -50,6 +51,7 @@ wechaty
     let content = message.text();
     const room = message.room();
     const isText = message.type() === wechaty.Message.Type.Text;
+
     if (!isText) {
       return;
     }
@@ -78,7 +80,8 @@ wechaty
       console.log(`room name: ${topic} contact: ${contact} content: ${content}`);
       reply(room, contact, content);
     } else {
-      console.log(`contact: ${contact} content: ${content}`);
+      console.log(`contact: ${contact} name:${contact.payload.alias} content: ${content}`);
+
       reply(null, contact, content);
     }
   });
@@ -100,13 +103,24 @@ async function reply(room, contact, content) {
 
   const prefix = content.split(' ')[0]
 
-  const keywords = ['/c', '/chatgpt']
+  const keywords = ['/c', '/chatgpt', '/表情包']
 
   const hit_prefix = keywords.includes(prefix)
 
   if (hit_prefix || is_admin) {
     const request = hit_prefix ? content.replace(prefix, '') : content;
-    await chatgptReply(target, contact, request);
+
+    switch (prefix) {
+      case '/表情包':
+        await send(target, await plugin_sogou_pic(request), wechaty.puppet.wechat4u)
+        break;
+
+      default:
+        await chatgptReply(target, contact, request);
+        break;
+    }
+
+
   }
 
 }
@@ -141,10 +155,29 @@ async function chatgptReply(room, contact, request) {
   await send(target, response);
 }
 
-async function send(contact, message) {
+async function send(contact, message, bot = null) {
   try {
     await contact.say(message);
   } catch (e) {
     console.error(e);
+  }
+}
+
+
+
+async function plugin_sogou_pic(keyword) {
+  try {
+    const url = `https://pic.sogou.com/napi/wap/emoji/searchlist?keyword=${keyword?.trim()}&spver=&rcer=&tag=0&routeName=emosearch`
+
+    const api = await fetch(url)
+
+    const resp = await api.json()
+
+    const pic_url = resp['data']['emotions'][0]['thumbSrc']
+    // 必须为 gif 结尾 否则将作为图片发送 https://github.com/nodeWechat/wechat4u/blob/f66fb69a352b4775210edd87d1101d7a165de797/src/wechat.js#L63
+    return FileBox.fromUrl(pic_url, { name: `${new Date().getTime()}.gif` })
+  } catch (error) {
+    console.error(`get sogou pic has error:${error.message}`)
+    return null
   }
 }
