@@ -173,7 +173,13 @@ async function plugin_sogou_pic(keyword) {
 
     const resp = await api.json()
 
-    const pic_url = resp['data']['emotions'][0]['thumbSrc']
+    const emotions = resp['data']['emotions']
+
+    let random = Math.floor((Math.random() * emotions.length))
+
+    const pic_url = emotions[random]['thumbSrc']
+
+
     // 必须为 gif 结尾 否则将作为图片发送 https://github.com/nodeWechat/wechat4u/blob/f66fb69a352b4775210edd87d1101d7a165de797/src/wechat.js#L63
     return FileBox.fromUrl(pic_url, { name: `${new Date().getTime()}.gif` })
   } catch (error) {
