@@ -566,11 +566,12 @@ bcrypt-pbkdf@^1.0.0:
   dependencies:
     tweetnacl "^0.14.3"
 
-bing-chat@^0.2.3:
+bing-chat-patch@^0.2.3:
   version "0.2.3"
-  resolved "https://registry.npmmirror.com/bing-chat/-/bing-chat-0.2.3.tgz#aba19c55e5dfbe12ceae6e26cbbaf405c146703f"
-  integrity sha512-q9JIGqrrEhBEgIhTdtawvxcwQO5sdhMN3uATbLxpd52sH0+Jm7QhtsaodlLUbQgEQGo+YXfFPWWpK5lWMXGvHw==
+  resolved "https://registry.yarnpkg.com/bing-chat-patch/-/bing-chat-patch-0.2.3.tgz#bca6175f09636c8adba46f36676d1e5b3b313340"
+  integrity sha512-w2i/c2s1NGxxvgHMTM8ybEayRRg2MobBym+3/TqtwkfxEj6QJCq3AzGOoZE+uO+k4J8r2XFZxb2Jf4UFxkc5UQ==
   dependencies:
+    unfetch "^5.0.0"
     ws "^8.13.0"
 
 bl@^1.1.2:
@@ -2421,6 +2422,11 @@ typesafe-actions@^5.1.0:
   version "5.1.0"
   resolved "https://registry.npmmirror.com/typesafe-actions/-/typesafe-actions-5.1.0.tgz#9afe8b1e6a323af1fd59e6a57b11b7dd6623d2f1"
   integrity sha512-bna6Yi1pRznoo6Bz1cE6btB/Yy8Xywytyfrzu/wc+NFW3ZF0I+2iCGImhBsoYYCOWuICtRO4yHcnDlzgo1AdNg==
+
+unfetch@^5.0.0:
+  version "5.0.0"
+  resolved "https://registry.yarnpkg.com/unfetch/-/unfetch-5.0.0.tgz#8a5b6e5779ebe4dde0049f7d7a81d4a1af99d142"
+  integrity sha512-3xM2c89siXg0nHvlmYsQ2zkLASvVMBisZm5lF3gFDqfF2xonNStDJyMpvaOBe0a1Edxmqrf2E0HBdmy9QyZaeg==
 
 uri-js@^4.2.2:
   version "4.4.1"

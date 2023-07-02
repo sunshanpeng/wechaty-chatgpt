@@ -1,9 +1,8 @@
-import { BingChat } from 'bing-chat';
+import { BingChat } from 'bing-chat-patch';
 import { ChatGPTAPI } from 'chatgpt';
 import { FileBox } from 'file-box';
 import qrcodeTerminal from 'qrcode-terminal';
 import { WechatyBuilder } from 'wechaty';
-import './fixbing.js';
 
 const api4 = new ChatGPTAPI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -15,9 +14,10 @@ const api3 = new ChatGPTAPI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-const api_bing = new BingChat({
+let api_bing = new BingChat({
   cookie: process.env.BING_COOKIE
 })
+api_bing.fetch = global.fetch
 
 const api_map = { "api3": api3, "api3": api4, "api_bing": api_bing }
 
