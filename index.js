@@ -1,13 +1,26 @@
+import { BingChat } from 'bing-chat';
 import { ChatGPTAPI } from 'chatgpt';
 import { FileBox } from 'file-box';
 import qrcodeTerminal from 'qrcode-terminal';
 import { WechatyBuilder } from 'wechaty';
 
-const api = new ChatGPTAPI({
+const api4 = new ChatGPTAPI({
   apiKey: process.env.OPENAI_API_KEY,
   apiBaseUrl: process.env.apiBaseUrl,
 });
 
+
+const api3 = new ChatGPTAPI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
+
+const api_bing = new BingChat({
+  cookie: process.env.BING_COOKIE
+})
+
+const api_map = { "api3": api3, "api3": api4, "api_bing": api_bing }
+
+let current_ai = "api_bing"
 
 const conversationPool = new Map();
 
@@ -18,13 +31,18 @@ const wechaty = WechatyBuilder.build({
     uos: true,
   },
 });
+let bot_name = ''
 wechaty
   .on('scan', async (qrcode, status) => {
     qrcodeTerminal.generate(qrcode, { small: true }); // 在console端显示二维码
     const qrcodeImageUrl = ['https://api.qrserver.com/v1/create-qr-code/?data=', encodeURIComponent(qrcode)].join('');
     console.log(qrcodeImageUrl);
   })
-  .on('login', user => console.log(`User ${user} logged in`))
+  .on('login', user => {
+    bot_name = user.payload.name
+    console.log(`User ${user.payload.name} logged in`)
+  }
+  )
   .on('logout', user => console.log(`User ${user} has logged out`))
   .on('room-invite', async roomInvitation => {
     try {
@@ -114,6 +132,14 @@ async function reply(room, contact, content) {
       case '/表情包':
         await send(target, await plugin_sogou_pic(request), wechaty.puppet.wechat4u)
         break;
+      case '/enable':
+        if (!is_admin) {
+          await send(target, '你无权操作此命令')
+          break;
+        }
+        current_ai = request
+        await send(target, 'ok')
+        break;
 
       default:
         await chatgptReply(target, contact, request);
@@ -127,6 +153,9 @@ async function reply(room, contact, content) {
 
 async function chatgptReply(room, contact, request) {
   console.log(`contact: ${contact} request: ${request}`);
+  if (request && request.startsWith(bot_name)) {
+    request = request.replace(bot_name, '').trim()
+  }
   let response = '🤒🤒🤒出了一点小问题，请稍后重试下...';
   try {
     let opts = {};
@@ -136,6 +165,9 @@ async function chatgptReply(room, contact, request) {
       opts = conversation;
     }
     opts.timeoutMs = 2 * 60 * 1000;
+
+    const api = api_map[current_ai]
+
     let res = await api.sendMessage(request, opts);
     response = res.text;
     console.log(`contact: ${contact} response: ${response}`);
@@ -155,7 +187,7 @@ async function chatgptReply(room, contact, request) {
   await send(target, response);
 }
 
-async function send(contact, message, bot = null) {
+async function send(contact, message) {
   try {
     await contact.say(message);
   } catch (e) {

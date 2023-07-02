@@ -566,6 +566,13 @@ bcrypt-pbkdf@^1.0.0:
   dependencies:
     tweetnacl "^0.14.3"
 
+bing-chat@^0.2.3:
+  version "0.2.3"
+  resolved "https://registry.npmmirror.com/bing-chat/-/bing-chat-0.2.3.tgz#aba19c55e5dfbe12ceae6e26cbbaf405c146703f"
+  integrity sha512-q9JIGqrrEhBEgIhTdtawvxcwQO5sdhMN3uATbLxpd52sH0+Jm7QhtsaodlLUbQgEQGo+YXfFPWWpK5lWMXGvHw==
+  dependencies:
+    ws "^8.13.0"
+
 bl@^1.1.2:
   version "1.2.3"
   resolved "https://registry.npmmirror.com/bl/-/bl-1.2.3.tgz#1e8dd80142eac80d7158c9dccc047fb620e035e7"
@@ -2649,7 +2656,7 @@ wrappy@1:
   resolved "https://registry.npmmirror.com/wrappy/-/wrappy-1.0.2.tgz#b5243d8f3ec1aa35f1364605bc0d1036e30ab69f"
   integrity sha512-l4Sp/DRseor9wL6EvV2+TuQn63dMkPjZ/sp9XkghTEbV9KlPS1xUsZ3u7/IQO4wxtcFB4bgpQPRcR3QCvezPcQ==
 
-ws@^8.5.0:
+ws@^8.13.0, ws@^8.5.0:
   version "8.13.0"
   resolved "https://registry.npmmirror.com/ws/-/ws-8.13.0.tgz#9a9fb92f93cf41512a0735c8f4dd09b8a1211cd0"
   integrity sha512-x9vcZYTrFPC7aSIbj7sRCYo7L/Xb8Iy+pW0ng0wt2vCJv7M9HOMy0UoN3rr+IFC7hb7vXoqS+P9ktyLLLhO+LA==
