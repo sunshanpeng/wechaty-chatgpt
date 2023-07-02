@@ -16,6 +16,7 @@
   "author": "sunshanpeng",
   "license": "Apache-2.0",
   "dependencies": {
+    "bing-chat": "^0.2.3",
     "chatgpt": "5.2.5",
     "qrcode-terminal": "^0.12.0",
     "wechaty": "^1.20.2",

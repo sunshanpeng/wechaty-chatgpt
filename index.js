@@ -1,8 +1,9 @@
+import { BingChat } from 'bing-chat';
 import { ChatGPTAPI } from 'chatgpt';
+import crypto from 'crypto';
 import { FileBox } from 'file-box';
 import qrcodeTerminal from 'qrcode-terminal';
 import { WechatyBuilder } from 'wechaty';
-import { BingChat } from './model/bing';
 
 const api4 = new ChatGPTAPI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -17,6 +18,9 @@ const api3 = new ChatGPTAPI({
 const api_bing = new BingChat({
   cookie: process.env.BING_COOKIE
 })
+
+
+api_bing.createConversation = _createConversation.bind(api_bing)
 
 const api_map = { "api3": api3, "api3": api4, "api_bing": api_bing }
 
@@ -218,4 +222,55 @@ async function plugin_sogou_pic(keyword) {
     console.error(`get sogou pic has error:${error.message}`)
     return null
   }
+}
+
+
+
+async function _createConversation() {
+  const requestId = crypto.randomUUID()
+  const cookie =
+    (this._cookie.includes(';') ? this._cookie : `_U=${this._cookie}`) +
+    `;SRCHHPGUSR=HV=${Math.round(new Date().getTime() / 1e3)}`
+
+  return fetch('https://www.bing.com/turing/conversation/create', {
+    headers: {
+      accept: 'application/json',
+      'accept-language': 'en-US,en;q=0.9',
+      'content-type': 'application/json',
+      'sec-ch-ua':
+        '"Not_A Brand";v="99", "Microsoft Edge";v="109", "Chromium";v="109"',
+      'sec-ch-ua-arch': '"x86"',
+      'sec-ch-ua-bitness': '"64"',
+      'sec-ch-ua-full-version': '"109.0.1518.78"',
+      'sec-ch-ua-full-version-list':
+        '"Not_A Brand";v="99.0.0.0", "Microsoft Edge";v="109.0.1518.78", "Chromium";v="109.0.5414.120"',
+      'sec-ch-ua-mobile': '?0',
+      'sec-ch-ua-model': '',
+      'sec-ch-ua-platform': '"macOS"',
+      'sec-ch-ua-platform-version': '"12.6.0"',
+      'sec-fetch-dest': 'empty',
+      'sec-fetch-mode': 'cors',
+      'sec-fetch-site': 'same-origin',
+      'x-edge-shopping-flag': '1',
+      'x-ms-client-request-id': requestId,
+      'x-ms-useragent':
+        'azsdk-js-api-client-factory/1.0.0-beta.1 core-rest-pipeline/1.10.0 OS/MacIntel',
+      'x-forwarded-for': '1.1.1.1',
+      cookie
+    },
+    referrer: 'https://www.bing.com/search',
+    referrerPolicy: 'origin-when-cross-origin',
+    body: null,
+    method: 'GET',
+    mode: 'cors',
+    credentials: 'include'
+  }).then((res) => {
+    if (res.ok) {
+      return res.json()
+    } else {
+      throw new Error(
+        `unexpected HTTP error createConversation ${res.status}: ${res.statusText}`
+      )
+    }
+  })
 }
