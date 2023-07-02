@@ -1,8 +1,8 @@
-import { BingChat } from 'bing-chat';
 import { ChatGPTAPI } from 'chatgpt';
 import { FileBox } from 'file-box';
 import qrcodeTerminal from 'qrcode-terminal';
 import { WechatyBuilder } from 'wechaty';
+import { BingChat } from './model/bing';
 
 const api4 = new ChatGPTAPI({
   apiKey: process.env.OPENAI_API_KEY,
