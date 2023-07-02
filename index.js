@@ -17,7 +17,7 @@ const api3 = new ChatGPTAPI({
 let api_bing = new BingChat({
   cookie: process.env.BING_COOKIE
 })
-api_bing.fetch = global.fetch
+
 
 const api_map = { "api3": api3, "api3": api4, "api_bing": api_bing }
 
@@ -128,6 +128,11 @@ async function reply(room, contact, content) {
 
   if (hit_prefix || is_admin) {
     const request = hit_prefix ? content.replace(prefix, '') : content;
+
+    if (!hit_prefix) {
+      await chatgptReply(target, contact, request);
+      return
+    }
 
     switch (prefix) {
       case '/表情包':
