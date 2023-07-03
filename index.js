@@ -7,7 +7,7 @@ import { Configuration, OpenAIApi } from 'openai';
 import qrcodeTerminal from 'qrcode-terminal';
 import { Readable } from 'stream';
 import { WechatyBuilder } from 'wechaty';
-
+import BingDrawClient from './utils/bing-draw.js';
 dotenv.config();
 
 const api3 = new ChatGPTAPI({
@@ -161,18 +161,18 @@ async function reply(room, contact, content) {
   const hit_prefix = keywords.includes(prefix)
 
   if (hit_prefix || currentAdminUser) {
-    const request = hit_prefix ? content.replace(prefix, '') : content;
+    const prompt = hit_prefix ? content.replace(prefix, '') : content;
 
     if (!hit_prefix) {
-      await chatgptReply(target, contact, request);
+      await chatgptReply(target, contact, prompt);
       return
     }
 
-    console.log(`🧑‍💻 contact:${contact} content: ${request}`);
+    console.log(`🧑‍💻 contact:${contact} content: ${content}`);
 
     switch (prefix) {
       case '/表情包':
-        await send(target, await plugin_sogou_emotion(request))
+        await send(target, await plugin_sogou_emotion(prompt))
         break;
       case '/enable':
         if (!currentAdminUser) {
@@ -180,7 +180,7 @@ async function reply(room, contact, content) {
           break;
         }
 
-        const temp_ai = request.trim()
+        const temp_ai = prompt.trim()
         if (!api_map.hasOwnProperty(temp_ai)) {
           await send(target, `${temp_ai} not found`)
           break;
@@ -189,17 +189,19 @@ async function reply(room, contact, content) {
         await send(target, `ok ${currentAI}`)
         break;
       case '/画图':
-        const response = await openai.createImage({
-          prompt: request,
-          n: 1,
-          size: "512x512"
-        });
-        const image_url = response.data.data[0].url;
-        console.log(`${request} ${image_url}`)
-        await send(target, FileBox.fromUrl(image_url, { name: `${new Date().getTime()}.png` }))
+        let client = new BingDrawClient({
+          userToken: process.env.BING_COOKIE
+        })
+
+        try {
+          await client.getImages(prompt, target)
+        } catch (err) {
+          await send(target, '绘图失败：' + err)
+        }
+
         break
       default:
-        await chatgptReply(target, contact, request);
+        await chatgptReply(target, contact, prompt);
         break;
     }
   }
