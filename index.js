@@ -187,10 +187,11 @@ async function reply(room, contact, content) {
         await send(target, `ok ${currentAI}`)
         break;
       case '/画图':
-        response = openai.Image.create(
-          prompt = request,
-          n = 1,
-          size = "1024x1024"
+        response = openai.createImage({
+          prompt: request,
+          n: 1,
+          size: "1024x1024"
+        }
         )
         image_url = response['data'][0]['url']
         await send(target, FileBox.fromUrl(image_url, { name: `${new Date().getTime()}.png` }))
