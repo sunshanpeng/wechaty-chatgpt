@@ -20,7 +20,7 @@ const api4 = new ChatGPTAPI({
 });
 
 const api_bing = new BingChat({
-  cookie: process.env.BING_COOKIE
+  cookie: process.env.BING_COOKIE,
 })
 
 const configuration = new Configuration({
@@ -156,7 +156,7 @@ async function reply(room, contact, content) {
 
   const prefix = content.split(' ')[0]
 
-  const keywords = ['/c', '/chatgpt', '/表情包', '/enable']
+  const keywords = ['/c', '/chatgpt', '/表情包', '/enable', '/画图']
 
   const hit_prefix = keywords.includes(prefix)
 
@@ -186,7 +186,15 @@ async function reply(room, contact, content) {
         currentAI = temp_ai
         await send(target, `ok ${currentAI}`)
         break;
-
+      case '/画图':
+        response = openai.Image.create(
+          prompt = request,
+          n = 1,
+          size = "1024x1024"
+        )
+        image_url = response['data'][0]['url']
+        await send(target, FileBox.fromUrl(image_url, { name: `${new Date().getTime()}.png` }))
+        break
       default:
         await chatgptReply(target, contact, request);
         break;
