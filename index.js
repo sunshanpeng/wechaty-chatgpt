@@ -2,8 +2,12 @@ import { BingChat } from 'bing-chat-patch';
 import { ChatGPTAPI } from 'chatgpt';
 import dotenv from 'dotenv';
 import { FileBox } from 'file-box';
+
+import { Configuration, OpenAIApi } from 'openai';
 import qrcodeTerminal from 'qrcode-terminal';
+import { Readable } from 'stream';
 import { WechatyBuilder } from 'wechaty';
+
 dotenv.config();
 
 const api3 = new ChatGPTAPI({
@@ -15,9 +19,16 @@ const api4 = new ChatGPTAPI({
   apiBaseUrl: process.env.apiBaseUrl,
 });
 
-let api_bing = new BingChat({
+const api_bing = new BingChat({
   cookie: process.env.BING_COOKIE
 })
+
+const configuration = new Configuration({
+  apiKey: process.env.OPENAI_API_KEY,
+});
+
+const openai = new OpenAIApi(configuration);
+
 
 
 const api_map = { "api3": api3, "api4": api4, "api_bing": api_bing }
@@ -75,9 +86,25 @@ wechaty
     let content = message.text().trim();
     const room = message.room();
     const isText = message.type() === wechaty.Message.Type.Text;
+    const isAudio = message.type() === wechaty.Message.Type.Audio;
 
-    if (!isText) {
+    if (!isAudio && !isText) {
       return;
+    }
+
+    if (isAudio && currentAdminUser) {
+      // 解析语音转文字
+      try {
+        const audio = await message.wechaty.puppet.messageFile(message.payload.id);
+        const audioReadStream = Readable.from(audio.stream);
+        audioReadStream.path = 'conversation.wav';
+        const response = await openai.createTranscription(audioReadStream, 'whisper-1')
+        content = response?.data?.text
+      } catch (error) {
+        console.log(`createTranscription has error: ${error.message}`)
+        retrun
+      }
+
     }
 
     if (room) {
@@ -109,6 +136,10 @@ wechaty
   .catch(e => console.error(e));
 
 async function reply(room, contact, content) {
+  if (!content) {
+    console.log(`empty message`)
+    return
+  }
   const target = room || contact;
   if (currentAdminUser && content === 'ding') {
     await send(target, 'dong');
