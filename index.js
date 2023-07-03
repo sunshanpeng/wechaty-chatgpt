@@ -80,10 +80,7 @@ wechaty
       return;
     }
 
-
-
     if (room) {
-
       if (await message.mentionSelf()) {
         if (receiver) {
           // 支持修改机器人群聊昵称  https://github.com/sunshanpeng/wechaty-chatgpt/issues/3
@@ -160,7 +157,7 @@ async function reply(room, contact, content) {
 }
 
 async function chatgptReply(room, contact, request) {
-  const topic = await room?.topic() || 'none';
+  const topic = room && room.topic ? await room.topic() : 'none';
   console.log(`group:${topic} contact:${contact}  name:${contact.payload.alias} content: ${request}`);
   if (request && request.startsWith(receiverName)) {
     request = request.replace(receiverName, '').trim()
