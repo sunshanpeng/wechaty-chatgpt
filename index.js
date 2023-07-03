@@ -95,8 +95,16 @@ wechaty
     if (isAudio && currentAdminUser) {
       // 解析语音转文字
       try {
-        const audio = await message.wechaty.puppet.messageFile(message.payload.id);
-        const audioReadStream = Readable.from(audio.stream);
+        // fixed const audio = await message.wechaty.puppet.messageFile(message.payload.id);
+        // rawPayload.Content invalid
+        // See: https://github.com/wechaty/puppet-wechat4u/blob/71369a09c1134d55fe9e1379b50b619a6c8a24cc/src/puppet-wechat4u.ts#L671
+        const rawPayload = await wechaty.puppet.messageRawPayload(message.payload.id)
+        const audioFileBox = FileBox.fromStream(
+          (await wechaty.puppet.wechat4u.getVoice(rawPayload.MsgId)).data,
+          `message-${message.payload.id}-audio.sil`,
+        )
+
+        const audioReadStream = Readable.from(audioFileBox.stream);
         audioReadStream.path = 'conversation.wav';
         const response = await openai.createTranscription(audioReadStream, 'whisper-1')
         content = response?.data?.text
