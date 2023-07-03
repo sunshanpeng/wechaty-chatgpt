@@ -101,7 +101,7 @@ wechaty
         const response = await openai.createTranscription(audioReadStream, 'whisper-1')
         content = response?.data?.text
       } catch (error) {
-        console.error(`createTranscription has error: ${error.message}`)
+        console.error(`💥createTranscription has error: `, error)
         return;
       }
 
@@ -189,7 +189,7 @@ async function reply(room, contact, content) {
 
 async function chatgptReply(room, contact, request) {
   const topic = room && room.topic ? await room.topic() : 'none';
-  console.log(`group:${topic} contact:${contact}  name:${contact.payload.alias} content: ${request}`);
+  console.log(`🧑‍💻 group:${topic} contact:${contact} content: ${request}`);
   if (request && request.startsWith(receiverName)) {
     request = request.replace(receiverName, '').trim()
   }
@@ -209,7 +209,7 @@ async function chatgptReply(room, contact, request) {
     let res = await api.sendMessage(request, opts);
     response = res.text;
 
-    console.log(`group:${topic} contact: ${contact} response: ${response}`);
+    console.log(`👽️ group:${topic} contact: ${contact} response: ${response}`);
     conversation = {
       conversationId: res.conversationId,
       parentMessageId: res.id,
