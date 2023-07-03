@@ -188,7 +188,7 @@ async function reply(room, contact, content) {
         break;
       case '/画图':
         const response = await openai.createImage({
-          prompt: "a white siamese cat",
+          prompt: request,
           n: 1,
           size: "1024x1024",
         });
