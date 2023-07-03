@@ -101,8 +101,8 @@ wechaty
         const response = await openai.createTranscription(audioReadStream, 'whisper-1')
         content = response?.data?.text
       } catch (error) {
-        console.log(`createTranscription has error: ${error.message}`)
-        retrun
+        console.error(`createTranscription has error: ${error.message}`)
+        return;
       }
 
     }
