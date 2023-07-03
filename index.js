@@ -168,6 +168,8 @@ async function reply(room, contact, content) {
       return
     }
 
+    console.log(`🧑‍💻 contact:${contact} content: ${request}`);
+
     switch (prefix) {
       case '/表情包':
         await send(target, await plugin_sogou_emotion(request))
@@ -190,9 +192,10 @@ async function reply(room, contact, content) {
         const response = await openai.createImage({
           prompt: request,
           n: 1,
-          size: "1024x1024",
+          size: "512x512"
         });
         const image_url = response.data.data[0].url;
+        console.log(`${request} ${image_url}`)
         await send(target, FileBox.fromUrl(image_url, { name: `${new Date().getTime()}.png` }))
         break
       default:
