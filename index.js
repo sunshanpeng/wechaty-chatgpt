@@ -1,17 +1,18 @@
 import { BingChat } from 'bing-chat-patch';
 import { ChatGPTAPI } from 'chatgpt';
+import dotenv from 'dotenv';
 import { FileBox } from 'file-box';
 import qrcodeTerminal from 'qrcode-terminal';
 import { WechatyBuilder } from 'wechaty';
+dotenv.config();
+
+const api3 = new ChatGPTAPI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
 
 const api4 = new ChatGPTAPI({
   apiKey: process.env.OPENAI_API_KEY,
   apiBaseUrl: process.env.apiBaseUrl,
-});
-
-
-const api3 = new ChatGPTAPI({
-  apiKey: process.env.OPENAI_API_KEY,
 });
 
 let api_bing = new BingChat({
@@ -19,9 +20,11 @@ let api_bing = new BingChat({
 })
 
 
-const api_map = { "api3": api3, "api3": api4, "api_bing": api_bing }
+const api_map = { "api3": api3, "api4": api4, "api_bing": api_bing }
 
-let current_ai = "api_bing"
+let currentAI = "api_bing"
+
+let currentAdminUser = false
 
 const conversationPool = new Map();
 
@@ -32,7 +35,7 @@ const wechaty = WechatyBuilder.build({
     uos: true,
   },
 });
-let bot_name = ''
+let receiverName = ''
 wechaty
   .on('scan', async (qrcode, status) => {
     qrcodeTerminal.generate(qrcode, { small: true }); // 在console端显示二维码
@@ -40,8 +43,8 @@ wechaty
     console.log(qrcodeImageUrl);
   })
   .on('login', user => {
-    bot_name = user.payload.name
-    console.log(`User ${user.payload.name} logged in`)
+    receiverName = user.payload.name
+    console.log(`User ${user} logged in`)
   }
   )
   .on('logout', user => console.log(`User ${user} has logged out`))
@@ -65,42 +68,41 @@ wechaty
     }
   })
   .on('message', async message => {
+
     const contact = message.talker();
+    currentAdminUser = contact.payload.alias === process.env.ADMIN
     const receiver = message.listener();
-    let content = message.text();
+    let content = message.text().trim();
     const room = message.room();
     const isText = message.type() === wechaty.Message.Type.Text;
 
     if (!isText) {
       return;
     }
+
+
+
     if (room) {
-      const topic = await room.topic();
+
       if (await message.mentionSelf()) {
-        let receiverName = '';
         if (receiver) {
           // 支持修改机器人群聊昵称  https://github.com/sunshanpeng/wechaty-chatgpt/issues/3
-          const alias = await room.alias(receiver);
+          await room.alias(receiver);
           receiverName = alias || receiver.name();
         }
-        const groupContent = content.replace(`@${receiverName}`, '');
-        console.log(`groupContent:${groupContent}`);
-        if (groupContent) {
-          content = groupContent.trim();
-          if (!content.startsWith('/c')) {
-            // 支持在群里@直接调用
-            await chatgptReply(room, contact, content);
-          }
-        } else {
-          //todo 光@，没内容
-          console.log(`@ event emit. room name: ${topic} contact: ${contact} content: ${content}`);
-        }
-      }
-      console.log(`room name: ${topic} contact: ${contact} content: ${content}`);
-      reply(room, contact, content);
-    } else {
-      console.log(`contact: ${contact} name:${contact.payload.alias} content: ${content}`);
 
+        const groupContent = content.replace(`@${receiverName}`, '');
+
+        if (groupContent) {
+          await chatgptReply(room, contact, content);
+        }
+        //如果管理员艾特别人不处理
+      } else if (currentAdminUser && !content.startsWith('@')) {
+        await chatgptReply(room, contact, content);
+      }
+
+    } else {
+      // 私聊
       reply(null, contact, content);
     }
   });
@@ -110,23 +112,19 @@ wechaty
   .catch(e => console.error(e));
 
 async function reply(room, contact, content) {
-  content = content.trim();
-
   const target = room || contact;
-  const admin = process.env.ADMIN
-  const is_admin = target.payload.alias === admin
-
-  if (is_admin && content === 'ding') {
+  if (currentAdminUser && content === 'ding') {
     await send(target, 'dong');
+    return
   }
 
   const prefix = content.split(' ')[0]
 
-  const keywords = ['/c', '/chatgpt', '/表情包']
+  const keywords = ['/c', '/chatgpt', '/表情包', '/enable']
 
   const hit_prefix = keywords.includes(prefix)
 
-  if (hit_prefix || is_admin) {
+  if (hit_prefix || currentAdminUser) {
     const request = hit_prefix ? content.replace(prefix, '') : content;
 
     if (!hit_prefix) {
@@ -136,33 +134,39 @@ async function reply(room, contact, content) {
 
     switch (prefix) {
       case '/表情包':
-        await send(target, await plugin_sogou_pic(request), wechaty.puppet.wechat4u)
+        await send(target, await plugin_sogou_emotion(request))
         break;
       case '/enable':
-        if (!is_admin) {
+        if (!currentAdminUser) {
           await send(target, '你无权操作此命令')
           break;
         }
-        current_ai = request
-        await send(target, 'ok')
+
+        const temp_ai = request.trim()
+        if (!api_map.hasOwnProperty(temp_ai)) {
+          await send(target, `${temp_ai} not found`)
+          break;
+        }
+        currentAI = temp_ai
+        await send(target, `ok ${currentAI}`)
         break;
 
       default:
         await chatgptReply(target, contact, request);
         break;
     }
-
-
   }
 
 }
 
 async function chatgptReply(room, contact, request) {
-  console.log(`contact: ${contact} request: ${request}`);
-  if (request && request.startsWith(bot_name)) {
-    request = request.replace(bot_name, '').trim()
+  const topic = await room?.topic() || 'none';
+  console.log(`group:${topic} contact:${contact}  name:${contact.payload.alias} content: ${request}`);
+  if (request && request.startsWith(receiverName)) {
+    request = request.replace(receiverName, '').trim()
   }
-  let response = '🤒🤒🤒出了一点小问题，请稍后重试下...';
+  let response = FileBox.fromUrl('https://img02.sogoucdn.com/app/a/100520021/87DEAE7BAACE15B8CA451FC2645D6B3E',
+    { name: `${new Date().getTime()}.gif` });
   try {
     let opts = {};
     // conversation
@@ -172,11 +176,12 @@ async function chatgptReply(room, contact, request) {
     }
     opts.timeoutMs = 2 * 60 * 1000;
 
-    const api = api_map[current_ai]
+    const api = api_map[currentAI]
 
     let res = await api.sendMessage(request, opts);
     response = res.text;
-    console.log(`contact: ${contact} response: ${response}`);
+
+    console.log(`group:${topic} contact: ${contact} response: ${response}`);
     conversation = {
       conversationId: res.conversationId,
       parentMessageId: res.id,
@@ -188,7 +193,7 @@ async function chatgptReply(room, contact, request) {
     }
     console.error(e);
   }
-  // response = `${request} \n ------------------------ \n` + response;
+
   const target = room || contact;
   await send(target, response);
 }
@@ -201,9 +206,7 @@ async function send(contact, message) {
   }
 }
 
-
-
-async function plugin_sogou_pic(keyword) {
+async function plugin_sogou_emotion(keyword, random = true) {
   try {
     const url = `https://pic.sogou.com/napi/wap/emoji/searchlist?keyword=${keyword?.trim()}&spver=&rcer=&tag=0&routeName=emosearch`
 
@@ -213,10 +216,9 @@ async function plugin_sogou_pic(keyword) {
 
     const emotions = resp['data']['emotions']
 
-    let random = Math.floor((Math.random() * emotions.length))
+    const index = random ? Math.floor((Math.random() * emotions.length)) : 0
 
-    const pic_url = emotions[random]['thumbSrc']
-
+    const pic_url = emotions[index]['thumbSrc']
 
     // 必须为 gif 结尾 否则将作为图片发送 https://github.com/nodeWechat/wechat4u/blob/f66fb69a352b4775210edd87d1101d7a165de797/src/wechat.js#L63
     return FileBox.fromUrl(pic_url, { name: `${new Date().getTime()}.gif` })
