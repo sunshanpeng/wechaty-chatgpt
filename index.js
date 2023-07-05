@@ -170,7 +170,6 @@ async function reply(target, content) {
     return
   }
 
-  const prefix = content.split(' ')[0].trim()
 
   const keywords = [
     {
@@ -198,26 +197,42 @@ async function reply(target, content) {
       desp: '使用 AI 与文档对话，将文档发送至聊天窗口等待返回 embeddings 成功后，即可开始'
     },
     {
+      command: '/speetch',
+      desp: '文字转语音'
+    },
+    {
       command: '/help',
       desp: '帮助信息'
     },
 
   ]
+  let prompt = content
 
-  const commands = keywords.map(keyword => keyword.command);
+  const nlCommand = await naturalLanguageToCommand(prompt, keywords)
 
-  const hit_command = commands.includes(prefix)
-  let prompt = (hit_command ? content.replace(prefix, '') : content).trim();
+  let hitCommand = false
+  let userCommand = null
 
-  if (!hit_command) {
+  if (nlCommand.command) {
+    hitCommand = true
+    prompt = nlCommand.prompt
+    userCommand = nlCommand.command
+  } else {
+    userCommand = content.split(' ')[0].trim()
+    const commands = keywords.map(keyword => keyword.command);
+    hitCommand = commands.includes(userCommand)
+    prompt = (hitCommand ? content.replace(userCommand, '') : content).trim();
+  }
+
+
+  if (!hitCommand) {
     await chatgptReply(target, prompt);
     return
   }
 
-  if (hit_command) {
+  if (hitCommand) {
     console.log(`🧑‍💻 onCommand or admin contact:${target} content: ${content}`);
-
-    switch (prefix) {
+    switch (userCommand) {
       case '/表情包':
         await send(target, await plugin_sogou_emotion(prompt))
         break;
@@ -236,6 +251,9 @@ async function reply(target, content) {
         await send(target, `ok ${currentAI}`)
         break;
       case '/画图':
+        if (hasChinese(prompt)) {
+          prompt = await transToEnglish(prompt);
+        }
         let client = new BingDrawClient({
           userToken: process.env.BING_COOKIE,
           baseUrl: `https://${process.env.BING_HOST}`
@@ -268,7 +286,9 @@ async function reply(target, content) {
         const res = await askDocument(prompt);
         await send(target, res)
         break;
-        break
+      case '/speetch':
+        await send(target, FileBox.fromUrl(await textToSpeechUrl(prompt)))
+        break;
       case '/help':
         const helpText = keywords.map(keyword => `${keyword.command}   ${keyword.desp}`).join(`\n${'-'.repeat(20)}\n`);
         await send(target, helpText)
@@ -326,9 +346,9 @@ async function plugin_sogou_emotion(keyword, random = true) {
 
     const api = await fetch(url)
 
-    const resp = await api.json()
+    const res = await api.json()
 
-    const emotions = resp['data']['emotions']
+    const emotions = res['data']['emotions']
 
     const index = random ? Math.floor((Math.random() * emotions.length)) : 0
 
@@ -372,4 +392,59 @@ async function saveFile(filebox, path = 'resource') {
     writeStream.on('finish', resolve);
     writeStream.on('error', reject);
   });
+}
+
+async function textToSpeechUrl(text) {
+  var apiUrl = 'https://www.text-to-speech.cn/getSpeek.php';
+  var data = {
+    language: '中文（普通话，简体）',
+    voice: 'zh-CN-YunxiNeural',
+    text: text,
+    role: 0,
+    style: 0,
+    styledegree: 1,
+    rate: 0,
+    pitch: 0,
+    kbitrate: 'audio-16khz-32kbitrate-mono-mp3',
+    silence: '',
+    user_id: '',
+    yzm: ''
+  };
+  const randomIp = () => Array(4).fill(0).map((_, i) => Math.floor(Math.random() * 255) + (i === 0 ? 1 : 0)).join('.');
+
+  const api = await fetch(apiUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'x-forwarded-for': randomIp(),
+    },
+    body: new URLSearchParams(data)
+  })
+  const { code, download } = await api.json()
+  if (code != 200) throw new Error('语音生成失败')
+  return download
+}
+
+
+async function naturalLanguageToCommand(nl, keywords) {
+  const prompt = `根据 
+      ### 配置开始
+      ${JSON.stringify(keywords)}
+      ### 配置结束
+      这个配置匹配出用户输入的语句所匹配的命令，不要加任何解释
+      例如 我想画一个汤姆猫 你返回 {"command":"/画图","prompt":"一个汤姆猫"} 
+
+      Question:  ${nl}
+      Helpful Answer:
+  `
+
+  const { text } = await api3.sendMessage(prompt)
+  let command = {}
+  try {
+    command = JSON.parse(text)
+  } catch (error) {
+    console.log(`${text} ${error}`)
+  }
+
+  return command
 }
