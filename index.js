@@ -94,13 +94,12 @@ wechaty
     const receiver = message.listener();
     let content = message.text().trim();
     const room = message.room();
+    const target = room || contact;
     const isText = message.type() === wechaty.Message.Type.Text;
     const isAudio = message.type() === wechaty.Message.Type.Audio;
-
     const isFile = message.type() === wechaty.Message.Type.Attachment;
 
     if (isFile) {
-
       const filebox = await message.toFileBox()
       if (supportFileType(filebox.mediaType)) {
         await saveFile(filebox)
@@ -108,12 +107,9 @@ wechaty
         await send(room || contact, `${filebox.name} Embeddings 成功`)
         return
       }
-
     }
 
-
-    const topic = room && room.topic ? await room.topic() : 'none';
-
+    const topic = target.topic ? await target.topic() : 'none';
     if (!isAudio && !isText) {
       return;
     }
@@ -150,29 +146,24 @@ wechaty
           await room.alias(receiver);
           receiverName = alias || receiver.name();
         }
-        const groupContent = await message.mentionText();
-        if (groupContent) {
-          await reply(room, contact, groupContent);
-        }
+        content = await message.mentionText();
+        await reply(target, content);
       }
-
     } else {
-      // 私聊
-      reply(null, contact, content);
+      await reply(target, content);
     }
+
   });
 wechaty
   .start()
   .then(() => console.log('Start to log in wechat...'))
   .catch(e => console.error(e));
 
-async function reply(room, contact, content) {
-
+async function reply(target, content) {
   if (!content) {
-    console.log(`empty message`)
+    console.log(`🗅 empty message`)
     return
   }
-  const target = room || contact;
 
   if (currentAdminUser && content === 'ding') {
     await send(target, 'dong');
@@ -182,24 +173,48 @@ async function reply(room, contact, content) {
   const prefix = content.split(' ')[0].trim()
 
   const keywords = [
-    '/c',
-    '/chatgpt',
-    '/表情包',
-    '/enable',
-    '/画图',
-    '/mj',
-    '/doc',
+    {
+      command: '/c',
+      desp: 'AI对话，群聊时 @ 即可'
+    },
+    {
+      command: '/表情包',
+      desp: '搜狗表情包'
+    },
+    {
+      command: '/enable',
+      desp: '切换 AI 接口，需要管理员权限'
+    },
+    {
+      command: '/画图',
+      desp: 'bing 画图'
+    },
+    {
+      command: '/mj',
+      desp: 'mdjrny-v4 风格的画图'
+    },
+    {
+      command: '/doc',
+      desp: '使用 AI 与文档对话，将文档发送至聊天窗口等待返回 embeddings 成功后，即可开始'
+    },
+    {
+      command: '/help',
+      desp: '帮助信息'
+    },
+
   ]
 
-  const hit_prefix = keywords.includes(prefix)
-  let prompt = hit_prefix ? content.replace(prefix, '') : content;
+  const commands = keywords.map(keyword => keyword.command);
 
-  if (!hit_prefix) {
-    await chatgptReply(target, contact, prompt);
+  const hit_command = commands.includes(prefix)
+  let prompt = (hit_command ? content.replace(prefix, '') : content).trim();
+
+  if (!hit_command) {
+    await chatgptReply(target, prompt);
     return
   }
 
-  if (hit_prefix) {
+  if (hit_command) {
     console.log(`🧑‍💻 onCommand or admin contact:${target} content: ${content}`);
 
     switch (prefix) {
@@ -212,7 +227,7 @@ async function reply(room, contact, content) {
           break;
         }
 
-        const temp_ai = prompt.trim()
+        const temp_ai = prompt
         if (!api_map.hasOwnProperty(temp_ai)) {
           await send(target, `${temp_ai} not found`)
           break;
@@ -253,23 +268,25 @@ async function reply(room, contact, content) {
         const res = await askDocument(prompt);
         await send(target, res)
         break;
+        break
+      case '/help':
+        const helpText = keywords.map(keyword => `${keyword.command}   ${keyword.desp}`).join(`\n${'-'.repeat(20)}\n`);
+        await send(target, helpText)
+        break;
       default:
-        await chatgptReply(target, contact, prompt);
+        await chatgptReply(target, prompt);
         break;
     }
   }
 
 }
 
-async function chatgptReply(room, contact, request) {
-  if (request && request.startsWith(receiverName)) {
-    request = request.replace(receiverName, '').trim()
-  }
+async function chatgptReply(target, prompt) {
   let response = imageMessage('https://img02.sogoucdn.com/app/a/100520021/87DEAE7BAACE15B8CA451FC2645D6B3E', 'gif')
   try {
     let opts = {};
     // conversation
-    let conversation = conversationPool.get(contact.id);
+    let conversation = conversationPool.get(target.id);
     if (conversation) {
       opts = conversation;
     }
@@ -277,16 +294,14 @@ async function chatgptReply(room, contact, request) {
 
     const api = api_map[currentAI]
 
-    let res = await api.sendMessage(request, opts);
+    let res = await api.sendMessage(prompt, opts);
     response = res.text;
-
-    const topic = room && room.topic ? await room.topic() : 'none';
-    console.log(`👽️ group:${topic} contact: ${contact} response: ${response}`);
+    console.log(`👽️ contact: ${target} response: ${response}`);
     conversation = {
       conversationId: res.conversationId,
       parentMessageId: res.id,
     };
-    conversationPool.set(contact.id, conversation);
+    conversationPool.set(target.id, conversation);
   } catch (e) {
     if (e.message === 'ChatGPTAPI error 429') {
       response = '🤯🤯🤯请稍等一下哦，我还在思考你的上一个问题';
@@ -294,7 +309,6 @@ async function chatgptReply(room, contact, request) {
     console.error(e);
   }
 
-  const target = room || contact;
   await send(target, response);
 }
 
