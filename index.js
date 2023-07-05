@@ -16,6 +16,7 @@ dotenv.config();
 
 const api3 = new ChatGPTAPI({
   apiKey: process.env.OPENAI_API_KEY,
+  apiBaseUrl: process.env.OPENAI_BASE_URL
 });
 
 const api4 = new ChatGPTAPI({
@@ -208,22 +209,23 @@ async function reply(target, content) {
   ]
   let prompt = content
 
-  const nlCommand = await naturalLanguageToCommand(prompt, keywords)
 
   let hitCommand = false
   let userCommand = null
 
-  if (nlCommand.command) {
-    hitCommand = true
-    prompt = nlCommand.prompt
-    userCommand = nlCommand.command
-  } else {
-    userCommand = content.split(' ')[0].trim()
+  if (prompt.startsWith("/")) {
+    userCommand = prompt.split(' ')[0].trim()
     const commands = keywords.map(keyword => keyword.command);
     hitCommand = commands.includes(userCommand)
-    prompt = (hitCommand ? content.replace(userCommand, '') : content).trim();
+    prompt = (hitCommand ? prompt.replace(userCommand, '') : prompt).trim();
+  } else {
+    const nlCommand = await naturalLanguageToCommand(prompt, keywords)
+    if (nlCommand.command) {
+      hitCommand = true
+      prompt = nlCommand.prompt
+      userCommand = nlCommand.command
+    }
   }
-
 
   if (!hitCommand) {
     await chatgptReply(target, prompt);
@@ -231,7 +233,7 @@ async function reply(target, content) {
   }
 
   if (hitCommand) {
-    console.log(`🧑‍💻 onCommand or admin contact:${target} content: ${content}`);
+    console.log(`🧑‍💻 onCommand or admin contact:${target} command:${userCommand} content: ${content}`);
     switch (userCommand) {
       case '/表情包':
         await send(target, await plugin_sogou_emotion(prompt))
@@ -264,9 +266,9 @@ async function reply(target, content) {
         } catch (err) {
           await send(target, '绘图失败：' + err)
         }
-
+        break
       case '/mj':
-        prompt = hasChinese(prompt) ? await transToEnglish(prompt) : prompt
+        // prompt = hasChinese(prompt) ? await transToEnglish(prompt) : prompt
         const output = await replicate.run(
           "prompthero/openjourney:ad59ca21177f9e217b9075e7300cf6e14f7e5b4505b87b9689dbd866e9768969",
           {
@@ -290,7 +292,8 @@ async function reply(target, content) {
         await send(target, FileBox.fromUrl(await textToSpeechUrl(prompt)))
         break;
       case '/help':
-        const helpText = keywords.map(keyword => `${keyword.command}   ${keyword.desp}`).join(`\n${'-'.repeat(20)}\n`);
+        let helpText = keywords.map(keyword => `${keyword.command}   ${keyword.desp}`).join(`\n${'-'.repeat(20)}\n`);
+        helpText = helpText.concat(`\n${'-'.repeat(20)}\n 你也可以直接通过自然语言与我对话`)
         await send(target, helpText)
         break;
       default:
@@ -366,13 +369,14 @@ function imageMessage(url, ext = 'png') {
   return FileBox.fromUrl(url, { name: `${new Date().getTime()}.${ext}` })
 }
 
-async function transToEnglish(text) {
+async function transToEnglish(originText) {
   try {
-    const res = await api3.sendMessage(`你是一个翻译引擎，请翻译给出的文本为英文，只需要翻译不需要解释。 文本是${text}`)
-    text = res.text
+    const { text } = await api3.sendMessage(`我希望你能充当英语翻译。
+    你将检测语言，翻译它，不要在乎它是什么只需要翻译，不要输出任何与翻译无关的解释，我的第一句话是 ${originText}`)
+    originText = text
   } catch (error) {
   }
-  return text
+  return originText
 }
 
 function hasChinese(str) {
@@ -427,6 +431,7 @@ async function textToSpeechUrl(text) {
 
 
 async function naturalLanguageToCommand(nl, keywords) {
+  if (nl.startsWith('/help')) return nl
   const prompt = `根据 
       ### 配置开始
       ${JSON.stringify(keywords)}

@@ -50,7 +50,9 @@ export default class BingDrawClient {
             }
         }
         if (!success) {
-            throw new Error('绘图失败，请检查Bing token和代理/反代配置')
+            // throw new Error('绘图失败，请检查Bing token和代理/反代配置')
+            console.log('绘图失败，请检查Bing token和代理/反代配置')
+            return
         }
         let redirectUrl = response.headers.get('Location').replace('&nfy=1', '')
         let requestId = redirectUrl.split('id=')[1]
