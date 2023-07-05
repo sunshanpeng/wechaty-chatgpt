@@ -3,11 +3,15 @@ import { ChatGPTAPI } from 'chatgpt';
 import dotenv from 'dotenv';
 import { FileBox } from 'file-box';
 
+import * as FS from 'fs';
 import { Configuration, OpenAIApi } from 'openai';
+import * as PATH from 'path';
 import qrcodeTerminal from 'qrcode-terminal';
+import Replicate from "replicate";
 import { Readable } from 'stream';
 import { WechatyBuilder } from 'wechaty';
-import BingDrawClient from './utils/bing-draw.js';
+import BingDrawClient from './plugin/bing-draw.js';
+import { askDocument, loadDocuments, supportFileType } from './plugin/langchain.js';
 dotenv.config();
 
 const api3 = new ChatGPTAPI({
@@ -28,6 +32,11 @@ const configuration = new Configuration({
 });
 
 const openai = new OpenAIApi(configuration);
+
+const replicate = new Replicate({
+  auth: process.env.REPLICATE_API_TOKEN,
+});
+
 
 
 
@@ -68,7 +77,7 @@ wechaty
       console.error(e);
     }
   })
-  .on('room-join', async (room, inviteeList, inviter) => {
+  .on('room-join', async (room, inviteeList, inviter, date) => {
     console.log('received room-join event ');
   })
   .on('friendship', async friendship => {
@@ -88,9 +97,28 @@ wechaty
     const isText = message.type() === wechaty.Message.Type.Text;
     const isAudio = message.type() === wechaty.Message.Type.Audio;
 
+    const isFile = message.type() === wechaty.Message.Type.Attachment;
+
+    if (isFile) {
+
+      const filebox = await message.toFileBox()
+      if (supportFileType(filebox.mediaType)) {
+        await saveFile(filebox)
+        await loadDocuments()
+        await send(room || contact, `${filebox.name} Embeddings 成功`)
+        return
+      }
+
+    }
+
+
+    const topic = room && room.topic ? await room.topic() : 'none';
+
     if (!isAudio && !isText) {
       return;
     }
+
+    console.log(`👂 onMessage group:${topic} contact:${contact.payload.name} ${contact.payload.alias} content: ${content}`);
 
     if (isAudio && currentAdminUser) {
       // 解析语音转文字
@@ -107,7 +135,7 @@ wechaty
         const audioReadStream = Readable.from(audioFileBox.stream);
         audioReadStream.path = 'conversation.wav';
         const response = await openai.createTranscription(audioReadStream, 'whisper-1')
-        content = response?.data?.text
+        content = response?.data?.text.trim()
       } catch (error) {
         console.error(`💥createTranscription has error: `, error)
         return;
@@ -122,15 +150,10 @@ wechaty
           await room.alias(receiver);
           receiverName = alias || receiver.name();
         }
-
-        const groupContent = content.replace(`@${receiverName}`, '');
-
+        const groupContent = await message.mentionText();
         if (groupContent) {
-          await chatgptReply(room, contact, content);
+          await reply(room, contact, groupContent);
         }
-        //如果管理员艾特别人不处理
-      } else if (currentAdminUser && !content.startsWith('@')) {
-        await chatgptReply(room, contact, content);
       }
 
     } else {
@@ -144,31 +167,40 @@ wechaty
   .catch(e => console.error(e));
 
 async function reply(room, contact, content) {
+
   if (!content) {
     console.log(`empty message`)
     return
   }
   const target = room || contact;
+
   if (currentAdminUser && content === 'ding') {
     await send(target, 'dong');
     return
   }
 
-  const prefix = content.split(' ')[0]
+  const prefix = content.split(' ')[0].trim()
 
-  const keywords = ['/c', '/chatgpt', '/表情包', '/enable', '/画图']
+  const keywords = [
+    '/c',
+    '/chatgpt',
+    '/表情包',
+    '/enable',
+    '/画图',
+    '/mj',
+    '/doc',
+  ]
 
   const hit_prefix = keywords.includes(prefix)
+  let prompt = hit_prefix ? content.replace(prefix, '') : content;
 
-  if (hit_prefix || currentAdminUser) {
-    const prompt = hit_prefix ? content.replace(prefix, '') : content;
+  if (!hit_prefix) {
+    await chatgptReply(target, contact, prompt);
+    return
+  }
 
-    if (!hit_prefix) {
-      await chatgptReply(target, contact, prompt);
-      return
-    }
-
-    console.log(`🧑‍💻 contact:${contact} content: ${content}`);
+  if (hit_prefix) {
+    console.log(`🧑‍💻 onCommand or admin contact:${target} content: ${content}`);
 
     switch (prefix) {
       case '/表情包':
@@ -190,7 +222,8 @@ async function reply(room, contact, content) {
         break;
       case '/画图':
         let client = new BingDrawClient({
-          userToken: process.env.BING_COOKIE
+          userToken: process.env.BING_COOKIE,
+          baseUrl: `https://${process.env.BING_HOST}`
         })
 
         try {
@@ -199,7 +232,27 @@ async function reply(room, contact, content) {
           await send(target, '绘图失败：' + err)
         }
 
+      case '/mj':
+        prompt = hasChinese(prompt) ? await transToEnglish(prompt) : prompt
+        const output = await replicate.run(
+          "prompthero/openjourney:ad59ca21177f9e217b9075e7300cf6e14f7e5b4505b87b9689dbd866e9768969",
+          {
+            input: {
+              prompt: `${prompt}`
+            }
+          }
+        );
+
+        for (let i = 0; i < output.length; ++i) {
+          const url = output[i]
+          console.log(`🖼️ ${prompt} ${url}`);
+          await send(target, imageMessage(url))
+        }
         break
+      case '/doc':
+        const res = await askDocument(prompt);
+        await send(target, res)
+        break;
       default:
         await chatgptReply(target, contact, prompt);
         break;
@@ -209,13 +262,10 @@ async function reply(room, contact, content) {
 }
 
 async function chatgptReply(room, contact, request) {
-  const topic = room && room.topic ? await room.topic() : 'none';
-  console.log(`🧑‍💻 group:${topic} contact:${contact} content: ${request}`);
   if (request && request.startsWith(receiverName)) {
     request = request.replace(receiverName, '').trim()
   }
-  let response = FileBox.fromUrl('https://img02.sogoucdn.com/app/a/100520021/87DEAE7BAACE15B8CA451FC2645D6B3E',
-    { name: `${new Date().getTime()}.gif` });
+  let response = imageMessage('https://img02.sogoucdn.com/app/a/100520021/87DEAE7BAACE15B8CA451FC2645D6B3E', 'gif')
   try {
     let opts = {};
     // conversation
@@ -230,6 +280,7 @@ async function chatgptReply(room, contact, request) {
     let res = await api.sendMessage(request, opts);
     response = res.text;
 
+    const topic = room && room.topic ? await room.topic() : 'none';
     console.log(`👽️ group:${topic} contact: ${contact} response: ${response}`);
     conversation = {
       conversationId: res.conversationId,
@@ -270,9 +321,41 @@ async function plugin_sogou_emotion(keyword, random = true) {
     const pic_url = emotions[index]['thumbSrc']
 
     // 必须为 gif 结尾 否则将作为图片发送 https://github.com/nodeWechat/wechat4u/blob/f66fb69a352b4775210edd87d1101d7a165de797/src/wechat.js#L63
-    return FileBox.fromUrl(pic_url, { name: `${new Date().getTime()}.gif` })
+    return imageMessage(pic_url, 'gif')
   } catch (error) {
     console.error(`get sogou pic has error:${error.message}`)
     return null
   }
+}
+
+function imageMessage(url, ext = 'png') {
+  return FileBox.fromUrl(url, { name: `${new Date().getTime()}.${ext}` })
+}
+
+async function transToEnglish(text) {
+  try {
+    const res = await api3.sendMessage(`你是一个翻译引擎，请翻译给出的文本为英文，只需要翻译不需要解释。 文本是${text}`)
+    text = res.text
+  } catch (error) {
+  }
+  return text
+}
+
+function hasChinese(str) {
+  var pattern = /[\u4e00-\u9fa5]/; // 使用Unicode范围匹配中文字符
+  return pattern.test(str);
+}
+
+
+async function saveFile(filebox, path = 'resource') {
+  const audioReadStream = Readable.from(filebox.stream);
+  const filePath = PATH.join(path, filebox.name);
+  const writeStream = FS.createWriteStream(filePath);
+
+  audioReadStream.pipe(writeStream);
+
+  await new Promise((resolve, reject) => {
+    writeStream.on('finish', resolve);
+    writeStream.on('error', reject);
+  });
 }

@@ -52,4 +52,6 @@ next-env.d.ts
 # data dumps
 out/
 
-.env
+.env*
+
+resource
