@@ -57,21 +57,6 @@ async function askDocument(question) {
     // 初始化 openai 的 embeddings 对象
 
     // 加载数据
-
-    // const docs = (await docsearch).similaritySearchVectorWithScore(question, 1)
-    // const chain = loadQAChain(llm, { type: "stuff", verbose: true, prompt: question })
-
-    // const docsearch = Chroma.fromExistingCollection(embeddings, { collectionName: "private_doc" })
-    // /* Create the chain */
-    // const chain = ConversationalRetrievalQAChain.fromLLM(
-    //     llm,
-    //     (await docsearch).asRetriever
-    // );
-
-    // const res = await chain.call({ question, chat_history: [] });
-
-
-
     const vectorStore = await PineconeStore.fromExistingIndex(
         new OpenAIEmbeddings(),
         { pineconeIndex }

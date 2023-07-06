@@ -1,5 +1,5 @@
 import { BingChat } from 'bing-chat-patch';
-import { ChatGPTAPI } from 'chatgpt';
+import { ChatGPTAPI, ChatGPTUnofficialProxyAPI } from 'chatgpt';
 import dotenv from 'dotenv';
 import { FileBox } from 'file-box';
 
@@ -12,11 +12,17 @@ import { Readable } from 'stream';
 import { WechatyBuilder } from 'wechaty';
 import BingDrawClient from './plugin/bing-draw.js';
 import { askDocument, loadDocuments, supportFileType } from './plugin/langchain.js';
+import { browerGetHtml, chatWithHtml, duckduckgo, extractURL } from './plugin/webbrower.js';
 dotenv.config();
 
-const api3 = new ChatGPTAPI({
-  apiKey: process.env.OPENAI_API_KEY,
-  apiBaseUrl: process.env.OPENAI_BASE_URL
+// const api3 = new ChatGPTAPI({
+//   apiKey: process.env.OPENAI_API_KEY,
+//   apiBaseUrl: process.env.OPENAI_BASE_URL
+// });
+
+const api3 = new ChatGPTUnofficialProxyAPI({
+  accessToken: process.env.OPENAI_ACCESS_TOKEN,
+  apiReverseProxyUrl: 'https://ai.fakeopen.com/api/conversation',
 });
 
 const api4 = new ChatGPTAPI({
@@ -56,7 +62,7 @@ const wechaty = WechatyBuilder.build({
     uos: true,
   },
 });
-let receiverName = ''
+
 wechaty
   .on('scan', async (qrcode, status) => {
     qrcodeTerminal.generate(qrcode, { small: true }); // 在console端显示二维码
@@ -64,7 +70,6 @@ wechaty
     console.log(qrcodeImageUrl);
   })
   .on('login', user => {
-    receiverName = user.payload.name
     console.log(`User ${user} logged in`)
   }
   )
@@ -171,6 +176,17 @@ async function reply(target, content) {
     return
   }
 
+  let prompt = content
+
+  const url = extractURL(prompt)
+  if (url) {
+    const html = await browerGetHtml(url)
+    prompt = prompt.replace(url, '')
+    const res = await chatWithHtml(api3, html, null, prompt)
+    await send(target, res)
+    return
+  }
+
 
   const keywords = [
     {
@@ -198,8 +214,12 @@ async function reply(target, content) {
       desp: '使用 AI 与文档对话，将文档发送至聊天窗口等待返回 embeddings 成功后，即可开始'
     },
     {
-      command: '/speetch',
+      command: '/speech',
       desp: '文字转语音'
+    },
+    {
+      command: '/search',
+      desp: '搜索查询互联网内容进行回答'
     },
     {
       command: '/help',
@@ -207,8 +227,6 @@ async function reply(target, content) {
     },
 
   ]
-  let prompt = content
-
 
   let hitCommand = false
   let userCommand = null
@@ -236,7 +254,7 @@ async function reply(target, content) {
     console.log(`🧑‍💻 onCommand or admin contact:${target} command:${userCommand} content: ${content}`);
     switch (userCommand) {
       case '/表情包':
-        await send(target, await plugin_sogou_emotion(prompt))
+        await send(target, await pluginSogouEmotion(prompt))
         break;
       case '/enable':
         if (!currentAdminUser) {
@@ -288,8 +306,16 @@ async function reply(target, content) {
         const res = await askDocument(prompt);
         await send(target, res)
         break;
-      case '/speetch':
+      case '/speech':
+
         await send(target, FileBox.fromUrl(await textToSpeechUrl(prompt)))
+        break;
+      case '/search':
+        const searchResult = await duckduckgo(prompt)
+        if (searchResult) {
+          const res = await chatWithHtml(api3, searchResult, prompt);
+          await send(target, res)
+        }
         break;
       case '/help':
         let helpText = keywords.map(keyword => `${keyword.command}   ${keyword.desp}`).join(`\n${'-'.repeat(20)}\n`);
@@ -343,9 +369,9 @@ async function send(contact, message) {
   }
 }
 
-async function plugin_sogou_emotion(keyword, random = true) {
+async function pluginSogouEmotion(keyword, random = true) {
   try {
-    const url = `https://pic.sogou.com/napi/wap/emoji/searchlist?keyword=${keyword?.trim()}&spver=&rcer=&tag=0&routeName=emosearch`
+    const url = `https://pic.sogou.com/napi/wap/emoji/searchlist?keyword=${keyword.length == 0 ? '随机' : keyword}&spver=&rcer=&tag=0&routeName=emosearch`
 
     const api = await fetch(url)
 
@@ -436,7 +462,7 @@ async function naturalLanguageToCommand(nl, keywords) {
       ### 配置开始
       ${JSON.stringify(keywords)}
       ### 配置结束
-      这个配置匹配出用户输入的语句所匹配的命令，不要加任何解释
+      这个配置匹配出用户输入的语句所匹配的命令,并且删除desp与question相同的字,不要加任何解释
       例如 我想画一个汤姆猫 你返回 {"command":"/画图","prompt":"一个汤姆猫"} 
 
       Question:  ${nl}
@@ -447,6 +473,9 @@ async function naturalLanguageToCommand(nl, keywords) {
   let command = {}
   try {
     command = JSON.parse(text)
+    if (command.command == '/help') {
+      command.command = undefined
+    }
   } catch (error) {
     console.log(`${text} ${error}`)
   }
