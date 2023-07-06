@@ -22,6 +22,7 @@
     "chatgpt": "5.2.5",
     "chromadb": "^1.5.3",
     "dotenv": "^16.3.1",
+    "js-base64": "^3.7.5",
     "langchain": "^0.0.102",
     "mammoth": "^1.6.0",
     "openai": "^3.3.0",

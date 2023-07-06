@@ -12,6 +12,7 @@ import { Readable } from 'stream';
 import { WechatyBuilder } from 'wechaty';
 import BingDrawClient from './plugin/bing-draw.js';
 import { askDocument, loadDocuments, supportFileType } from './plugin/langchain.js';
+import { getMermaidCode, renderMermaidSVG } from './plugin/mermaid.js';
 import { browerGetHtml, chatWithHtml, duckduckgo, extractURL } from './plugin/webbrower.js';
 dotenv.config();
 
@@ -222,6 +223,10 @@ async function reply(target, content) {
       desp: '搜索查询互联网内容进行回答'
     },
     {
+      command: '/流程图',
+      desp: '生成流程图'
+    },
+    {
       command: '/help',
       desp: '帮助信息'
     },
@@ -317,9 +322,17 @@ async function reply(target, content) {
           await send(target, res)
         }
         break;
+
+      case '/流程图':
+        const code = await getMermaidCode(api3, prompt)
+        const svg = renderMermaidSVG(code)
+        await send(target, svg)
+        const editUrl = `https://mermaid-js.github.io/mermaid-live-editor/#/edit/${svg.remoteUrl.split('https://mermaid.ink/img/')[1]}`
+        await send(target, `在线编辑:${editUrl}`)
+        break;
       case '/help':
         let helpText = keywords.map(keyword => `${keyword.command}   ${keyword.desp}`).join(`\n${'-'.repeat(20)}\n`);
-        helpText = helpText.concat(`\n${'-'.repeat(20)}\n 你也可以直接通过自然语言与我对话`)
+        helpText = helpText.concat(`\n${'-'.repeat(20)}\n 你也可以直接通过自然语言触发以上命令与我对话`)
         await send(target, helpText)
         break;
       default:
@@ -477,7 +490,7 @@ async function naturalLanguageToCommand(nl, keywords) {
       command.command = undefined
     }
   } catch (error) {
-    console.log(`${text} ${error}`)
+    console.log(`naturalLanguageToCommand has error:${text} ${error}`)
   }
 
   return command
