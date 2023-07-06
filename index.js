@@ -13,7 +13,7 @@ import { WechatyBuilder } from 'wechaty';
 import BingDrawClient from './plugin/bing-draw.js';
 import { askDocument, loadDocuments, supportFileType } from './plugin/langchain.js';
 import { getMermaidCode, renderMermaidSVG } from './plugin/mermaid.js';
-import { browerGetHtml, chatWithHtml, duckduckgo, extractURL } from './plugin/webbrower.js';
+import { browerGetHtml, chatWithHtml, duckduckgo, extractURL } from './plugin/webbrowser.js';
 dotenv.config();
 
 // const api3 = new ChatGPTAPI({
