@@ -5,7 +5,10 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "chatgpt": "node index.js"
+    "chatgpt": "node index.js",
+    "nodemon": "nodemon --watch index.js",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node index.js"
   },
   "keywords": [
     "wechaty",
@@ -14,9 +17,19 @@
   "author": "sunshanpeng",
   "license": "Apache-2.0",
   "dependencies": {
-    "chatgpt": "^4.2.0",
+    "@pinecone-database/pinecone": "^0.1.6",
+    "bing-chat-patch": "^0.2.3",
+    "chatgpt": "5.2.5",
+    "chromadb": "^1.5.3",
+    "dotenv": "^16.3.1",
+    "js-base64": "^3.7.5",
+    "langchain": "^0.0.102",
+    "mammoth": "^1.6.0",
+    "openai": "^3.3.0",
+    "pdf-parse": "^1.1.1",
     "qrcode-terminal": "^0.12.0",
+    "replicate": "^0.12.3",
     "wechaty": "^1.20.2",
-    "wechaty-puppet-wechat": "^1.18.4"
+    "wechaty-puppet-wechat4u": "1.14.1"
   }
 }
